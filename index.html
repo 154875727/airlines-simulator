@@ -1,0 +1,586 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>送机模拟器 · 浦东机场 T2</title>
+<style>
+:root{--bg:#1b1e24;--panel:#242933;--panel2:#2c323e;--line:#3a4150;--txt:#e9ebf1;--dim:#98a1b3;--acc:#f0b429;--ok:#49b981;--bad:#e05c5c;--info:#5aa9e6;--route:#4fd1e0;--tow:#7ee2a0}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{font-family:"Microsoft YaHei","PingFang SC",sans-serif;background:var(--bg);color:var(--txt);display:flex;flex-direction:column;overflow:hidden}
+header{display:flex;align-items:center;gap:14px;padding:8px 16px;background:var(--panel);border-bottom:1px solid var(--line);flex:0 0 auto}
+header h1{font-size:18px;font-weight:600;letter-spacing:1px}
+header h1 span{color:var(--acc)}
+.tabs{display:flex;gap:6px;margin-left:18px}
+.tab{padding:6px 16px;border-radius:6px;background:var(--panel2);color:var(--dim);cursor:pointer;border:1px solid var(--line);font-size:14px;user-select:none}
+.tab.active{background:var(--acc);color:#1b1e24;font-weight:600;border-color:var(--acc)}
+.hdr-right{margin-left:auto;display:flex;gap:8px;align-items:center}
+.btn{padding:7px 14px;border-radius:6px;border:1px solid var(--line);background:var(--panel2);color:var(--txt);cursor:pointer;font-size:14px}
+.btn:hover{border-color:var(--acc)}
+.btn.primary{background:var(--acc);color:#1b1e24;font-weight:600;border-color:var(--acc)}
+.btn.ok{background:var(--ok);color:#10231a;font-weight:600;border-color:var(--ok)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+main{flex:1;display:flex;min-height:0}
+#mapWrap{flex:1;position:relative;background:#22262d;min-width:0}
+#map{width:100%;height:100%;display:block;cursor:grab}
+#map:active{cursor:grabbing}
+#side{flex:0 0 400px;background:var(--panel);border-left:1px solid var(--line);overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:12px}
+.card{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:12px}
+.card h3{font-size:14px;color:var(--acc);margin-bottom:8px;letter-spacing:1px}
+.dim{color:var(--dim);font-size:13px;line-height:1.7}
+#standInfo b{color:var(--acc);font-size:16px}
+.ruletxt{font-size:13px;line-height:1.8;color:var(--txt);background:#232732;border-radius:6px;padding:8px;margin-top:6px;border-left:3px solid var(--acc)}
+#instrInput{width:100%;padding:9px;border-radius:6px;border:1px solid var(--line);background:#1e222a;color:var(--txt);font-size:14px;font-family:inherit}
+#instrInput:focus{outline:none;border-color:var(--acc)}
+#parseOut{font-size:13px;line-height:1.9;margin-top:8px}
+#parseOut .tag{display:inline-block;background:#31405a;color:#9ecbff;border-radius:4px;padding:0 6px;margin-right:6px;font-size:12px}
+.dirBtns{display:flex;gap:8px}
+.dirBtn{flex:1;padding:10px 0;text-align:center;border-radius:6px;border:1px solid var(--line);background:#1e222a;cursor:pointer;font-size:15px;user-select:none}
+.dirBtn:hover{border-color:var(--acc)}
+.dirBtn.sel{background:var(--acc);color:#1b1e24;font-weight:700;border-color:var(--acc)}
+.mvOpts{display:flex;flex-direction:column;gap:6px}
+.mvOpt{padding:8px 10px;border-radius:6px;border:1px solid var(--line);background:#1e222a;cursor:pointer;font-size:14px;user-select:none}
+.mvOpt:hover{border-color:var(--acc)}
+.mvOpt.sel{background:var(--acc);color:#1b1e24;font-weight:600;border-color:var(--acc)}
+#feedback{font-size:14px;line-height:2}
+#feedback .good{color:var(--ok)}
+#feedback .bad{color:var(--bad)}
+#feedback .ansline{background:#232732;border-radius:6px;padding:8px;margin:4px 0}
+.stepHint{font-size:13px;color:var(--dim);margin-bottom:6px}
+.stepHint b{color:var(--info)}
+#caption{position:absolute;left:50%;top:14px;transform:translateX(-50%);background:rgba(20,23,28,.88);border:1px solid var(--acc);color:var(--acc);padding:8px 22px;border-radius:20px;font-size:16px;display:none;pointer-events:none;z-index:5}
+#mapToolbar{position:absolute;right:12px;top:12px;display:flex;flex-direction:column;gap:6px;z-index:5}
+#mapToolbar .btn{width:38px;height:38px;padding:0;font-size:18px;text-align:center}
+#legend{position:absolute;left:12px;bottom:12px;background:rgba(20,23,28,.88);border:1px solid var(--line);border-radius:8px;padding:10px 14px;font-size:12px;line-height:1.9;color:var(--dim);z-index:5}
+.sw{display:inline-block;width:18px;height:4px;border-radius:2px;vertical-align:middle;margin-right:6px}
+#quizBar{display:none;align-items:center;gap:10px;font-size:14px}
+#quizBar .prog{color:var(--acc);font-weight:700}
+.modalMask{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:50}
+.modal{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:22px;width:460px;max-height:70vh;overflow-y:auto}
+.modal h2{font-size:16px;margin-bottom:12px;color:var(--acc)}
+.modal .hrow{display:flex;justify-content:space-between;padding:7px 4px;border-bottom:1px dashed var(--line);font-size:13px}
+#errbox{position:fixed;left:10px;top:10px;background:#5a1d1d;color:#ffd7d7;padding:10px 14px;border-radius:8px;z-index:99;display:none;font-size:13px;max-width:60vw;white-space:pre-wrap}
+::-webkit-scrollbar{width:8px}::-webkit-scrollbar-thumb{background:#3a4150;border-radius:4px}
+.candMark{cursor:pointer}
+.candMark circle{animation:pulse 1.4s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+.standHot{cursor:pointer}
+</style>
+</head>
+<body>
+<div id="errbox"></div>
+<header>
+  <h1>送机模拟器 <span>· 浦东机场 T2（7/8号机坪） <b style="color:#49b981">V2</b></span></h1>
+  <div class="tabs">
+    <div class="tab active" id="tabPractice">练习模式</div>
+    <div class="tab" id="tabQuiz">考核模式</div>
+  </div>
+  <div id="quizBar"><span>进度 <span class="prog" id="quizProg">0/10</span></span><span>得分 <span class="prog" id="quizScore">0</span></span></div>
+  <div class="hdr-right">
+    <button class="btn" id="btnScores">成绩记录</button>
+    <button class="btn" id="btnReset">复位场景</button>
+  </div>
+</header>
+<main>
+  <div id="mapWrap">
+    <svg id="map" viewBox="0 0 1720 780" preserveAspectRatio="xMidYMid meet"><g id="viewport"></g></svg>
+    <div id="caption"></div>
+    <div id="mapToolbar">
+      <button class="btn" id="zoomIn" title="放大">＋</button>
+      <button class="btn" id="zoomOut" title="缩小">－</button>
+      <button class="btn" id="zoomReset" title="复位">⤾</button>
+    </div>
+    <div id="legend">
+      <div><span class="sw" style="background:#d8b93a"></span>滑行道/滑行线　<span class="sw" style="background:#c0392b"></span>机位安全线</div>
+      <div><span class="sw" style="background:var(--route)"></span>推出路线　<span class="sw" style="background:var(--tow)"></span>二次牵引路线</div>
+      <div style="margin-top:4px;color:#6b7485">示意图为简化重绘，仅供内部培训使用</div>
+    </div>
+  </div>
+  <div id="side">
+    <div class="card" id="standCard">
+      <h3>① 选择机位</h3>
+      <div id="standInfo" class="dim">请在地图上点击一个机位（飞机图标处），或从下拉框选择。</div>
+      <select id="standSel" style="width:100%;margin-top:8px;padding:8px;border-radius:6px;background:#1e222a;color:var(--txt);border:1px solid var(--line)"></select>
+    </div>
+    <div class="card" id="instrCard">
+      <h3>② 机长指令</h3>
+      <div id="quizInstr" class="ruletxt" style="display:none"></div>
+      <div id="practiceInstr">
+        <input id="instrInput" placeholder='例如：可以推，头朝南　/　可以推出开车　/　可以推，头朝南，让出E6道口'>
+        <button class="btn primary" id="btnParse" style="margin-top:8px;width:100%" disabled>解析指令</button>
+      </div>
+      <div id="parseOut"></div>
+    </div>
+    <div class="card" id="answerCard" style="display:none">
+      <h3>③ 学员作答</h3>
+      <div class="stepHint">第1步：选择<b>机头朝向</b></div>
+      <div class="dirBtns">
+        <div class="dirBtn" data-dir="N">← 北</div>
+        <div class="dirBtn" data-dir="E">↑ 东</div>
+        <div class="dirBtn" data-dir="S">→ 南</div>
+        <div class="dirBtn" data-dir="W">↓ 西</div>
+      </div>
+      <div class="stepHint" style="margin-top:10px">第2步：在地图上点击选择<b>推出结束位置</b>（黄色闪烁圆点）</div>
+      <div class="stepHint" style="margin-top:4px">第3步：选择<b>二次牵引方式</b></div>
+      <div class="mvOpts">
+        <div class="mvOpt" data-mv="none">不需要二次牵引，推到位即停</div>
+        <div class="mvOpt" data-mv="pull">先推后拉（推出后再向前牵引）</div>
+        <div class="mvOpt" data-mv="push">先推再推（推出后继续再推一段）</div>
+      </div>
+      <button class="btn primary" id="btnSubmit" style="margin-top:10px;width:100%">提交答案</button>
+    </div>
+    <div class="card" id="fbCard" style="display:none">
+      <h3>评判结果</h3>
+      <div id="feedback"></div>
+      <div style="display:flex;gap:8px;margin-top:10px">
+        <button class="btn ok" id="btnDemo" style="flex:1">▶ 播放正确演示</button>
+        <button class="btn primary" id="btnNext" style="flex:1;display:none">下一题 →</button>
+      </div>
+    </div>
+  </div>
+</main>
+<div class="modalMask" id="scoreModal"><div class="modal">
+  <h2>考核成绩记录</h2>
+  <div id="scoreList"></div>
+  <div style="text-align:right;margin-top:12px"><button class="btn" id="btnClearScores">清空记录</button> <button class="btn primary" id="btnCloseScores">关闭</button></div>
+</div></div>
+<script>
+window.onerror=function(m,s,l,c){var e=document.getElementById('errbox');e.style.display='block';e.textContent='脚本错误: '+m+' (行'+l+':'+c+')';};
+'use strict';
+/* ================= 基础常量 ================= */
+/* 屏幕方向约定：北=左（与ZSPD官方航图一致） 东=上 南=右 西=下 */
+const DIR2HDG={N:270,E:0,S:90,W:180};
+const CN2DIR={'北':'N','东':'E','南':'S','西':'W'};
+const DIR_CN={N:'北',E:'东',S:'南',W:'西'};
+const MV_CN={none:'不需要二次牵引',pull:'先推后拉',push:'先推再推'};
+const AREA_INFO={
+ A:{name:'A区',rule:'机头朝北，推出至 L12。滑出主用 L12/L10/E6；滑入主用 E7/L11/L12。'},
+ B:{name:'B区',rule:'机头朝东。50/51/53 滑出主用 L10/E6，滑入 E7/L10；801-805 滑出主用 L11/E6，滑入 E7/L11。'},
+ C:{name:'C区',rule:'机头朝南，推出至 L08。滑入主用 R6/L08。'},
+ D:{name:'D区',rule:'机头朝北，推出至 L08。滑入主用 R5/L08。'},
+ E:{name:'E区',rule:'机头朝南，推出至 L08。滑入主用 R5/L08。'},
+ F:{name:'F区',rule:'机头朝东，推出至 L07。滑入主用 W7/L07。W5 为进港滑行道，W4 为出港滑行道。'},
+ G:{name:'G区',rule:'机头朝南，推出至 L06。滑入主用 W5/L06。'}
+};
+/* ================= 机位数据（V2：布局严格参照 T2.png，坐标可按需微调） ================= */
+const STANDS={};
+function reg(id,cfg){STANDS[id]=Object.assign({kind:'桥位',towType:null,towEnd:null,towKeyword:'',towDesc:'',angled:false,angledHdg:0,curve:1,special:'',distractors:[]},cfg);}
+/* C区 55-65（指廊北排，推出至L08，默认机头朝南；55/57斜停） */
+[55,57,59,61,63,65].forEach((n,i)=>{const x=263+i*60;reg(n,{area:'C',x:x,y:390,parkedHdg:180,defaultDir:'S',pushEnd:{x:x,y:333},pushDesc:'L08 滑行线',distractors:[{x:x,y:228},{x:x,y:633}]});});
+STANDS[55].parkedHdg=200;STANDS[57].parkedHdg=190;
+/* D区 67-75（机头朝北） */
+[67,69,71,73,75].forEach((n,i)=>{const x=623+i*60;reg(n,{area:'D',x:x,y:390,parkedHdg:180,defaultDir:'N',pushEnd:{x:x,y:333},pushDesc:'L08 滑行线',distractors:[{x:x,y:228},{x:x,y:633}]});});
+/* E区 77-93（机头朝南；93斜停） */
+[77,79,81,83,85,87,89,91,93].forEach((n,i)=>{const x=923+i*60;reg(n,{area:'E',x:x,y:390,parkedHdg:180,defaultDir:'S',pushEnd:{x:x,y:333},pushDesc:'L08 滑行线',distractors:[{x:x,y:228},{x:x,y:633}]});});
+STANDS[93].parkedHdg=150;
+/* A区 52-64偶（西指廊南排，推出至L12，机头朝北；50/52斜停） */
+[52,54,56,58,60,62,64].forEach((n,i)=>{const x=313+i*50;reg(n,{area:'A',x:x,y:565,parkedHdg:0,defaultDir:'N',pushEnd:{x:x,y:633},pushDesc:'L12 滑行线',distractors:[{x:x,y:333},{x:200,y:690}]});});
+STANDS[52].parkedHdg=15;
+/* B区 50/51/53（斜停，机头朝东） */
+reg(50,{area:'B',x:263,y:565,parkedHdg:35,defaultDir:'E',pushEnd:{x:225,y:633},pushDesc:'L12/L10 一带',curve:-1,distractors:[{x:263,y:333},{x:400,y:633}]});
+reg(51,{area:'B',x:263,y:490,parkedHdg:115,defaultDir:'E',pushEnd:{x:205,y:545},pushDesc:'L10/L11 一带',curve:-1,distractors:[{x:263,y:333},{x:400,y:633}]});
+reg(53,{area:'B',x:263,y:453,parkedHdg:105,defaultDir:'E',pushEnd:{x:215,y:520},pushDesc:'L10/L11 一带',curve:-1,distractors:[{x:263,y:333},{x:400,y:633}]});
+/* G区 80-94偶（南指廊南排，推出至L06，机头朝南；92/94斜停） */
+[80,82,84,86,88,90,92,94].forEach((n,i)=>{const x=1133+i*44;reg(n,{area:'G',x:x,y:565,parkedHdg:0,defaultDir:'S',pushEnd:{x:x,y:633},pushDesc:'L06 滑行线',distractors:[{x:x,y:333},{x:1538,y:633}]});});
+STANDS[92].parkedHdg=350;STANDS[94].parkedHdg=325;
+/* F区 95-98（95斜停在北排东端；97/98竖排；96斜停） */
+reg(95,{area:'F',x:1463,y:390,parkedHdg:140,defaultDir:'E',pushEnd:{x:1538,y:390},pushDesc:'L07 滑行线',distractors:[{x:1400,y:633},{x:1538,y:633}]});
+reg(97,{area:'F',x:1478,y:468,parkedHdg:270,defaultDir:'E',pushEnd:{x:1538,y:468},pushDesc:'L07 滑行线',distractors:[{x:1400,y:633},{x:1538,y:633}]});
+reg(98,{area:'F',x:1478,y:508,parkedHdg:270,defaultDir:'E',pushEnd:{x:1538,y:508},pushDesc:'L07 滑行线',distractors:[{x:1400,y:633},{x:1538,y:633}]});
+reg(96,{area:'F',x:1478,y:558,parkedHdg:300,defaultDir:'E',pushEnd:{x:1470,y:633},pushDesc:'L06 滑行线（长推）',curve:-1,distractors:[{x:1400,y:633},{x:1538,y:408}]});
+/* 远机位 801-805（L10/L11 西侧，机头朝东） */
+[[805,363],[804,415],[803,460],[802,520],[801,580]].forEach(a=>{reg(a[0],{area:'B',kind:'远机位',x:60,y:a[1],parkedHdg:90,defaultDir:'E',pushEnd:{x:152,y:a[1]},pushDesc:'L11 滑行线',curve:-1,distractors:[{x:200,y:690},{x:263,y:333}]});});
+/* 远机位 806-809（8号坪西，机头朝南） */
+[806,807,808,809].forEach((n,i)=>{const x=270+i*48;reg(n,{area:'C',kind:'远机位',x:x,y:250,parkedHdg:0,defaultDir:'S',pushEnd:{x:x,y:333},pushDesc:'L08 滑行线',distractors:[{x:x,y:228},{x:x,y:633}]});});
+/* 远机位 810-816（8号坪东，机头朝南） */
+[810,811,812,813,814,815,816].forEach((n,i)=>{const x=1050+i*50;reg(n,{area:'E',kind:'远机位',x:x,y:250,parkedHdg:0,defaultDir:'S',pushEnd:{x:x,y:333},pushDesc:'L08 滑行线',distractors:[{x:x,y:228},{x:1200,y:633}]});});
+/* ===== 特殊机位程序 ===== */
+Object.assign(STANDS[55],{pushEnd:{x:250,y:333},towType:'pull',towEnd:{x:310,y:343},towKeyword:'让出E6道口',towDesc:'L08，让出E6道口（机尾过E6以南中间等待位置）',special:'先推后拉，让出E6道口'});
+Object.assign(STANDS[806],{towType:'pull',towEnd:{x:310,y:343},towKeyword:'让出E6道口',towDesc:'L08，让出E6道口（机尾过E6以南中间等待位置）',special:'先推后拉，让出E6道口'});
+Object.assign(STANDS[67],{towType:'push',towEnd:{x:480,y:330},towKeyword:'让出R6道口',towDesc:'L08，让出R6道口',special:'先推再推，让出R6道口'});
+Object.assign(STANDS[75],{pushEnd:{x:1073,y:333},towType:'pull',towEnd:{x:990,y:328},towKeyword:'让出R5道口',towDesc:'L08，机尾过R5北侧中间等待位置',special:'先推后拉，让出R5道口'});
+[77,79].forEach(n=>Object.assign(STANDS[n],{pushEnd:{x:1073,y:333},towType:'pull',towEnd:{x:1150,y:338},towKeyword:'让出R5道口',towDesc:'L08，让出R5道口（机尾过R5以南中间等待位置）',special:'先推后拉，让出R5道口'}));
+Object.assign(STANDS[810],{pushEnd:{x:1073,y:333},towType:'pull',towEnd:{x:1150,y:338},towKeyword:'让出R5道口',towDesc:'L08，让出R5道口（机尾过R5以南中间等待位置）',special:'先推后拉，让出R5道口'});
+Object.assign(STANDS[96],{towType:'pull',towEnd:{x:1538,y:530},towKeyword:'拉到L07指定位置',towDesc:'L07 指定位置（CE05，不影响W5滑行道）',special:'长推至L06后向前拉至L07指定位置（先推后拉），不影响W5'});
+[92,94].forEach(n=>Object.assign(STANDS[n],{towType:'push',towEnd:{x:1280,y:633},towKeyword:'推到90号位以北',towDesc:'L06，90号位以北指定位置（CE06）',special:'长推至90号位以北L06指定位置（先推再推）'}));
+Object.assign(STANDS[64],{angled:true,angledHdg:315,pushEnd:{x:600,y:612},pushDesc:'推出线1号位（鼻轮不得推过推出等待点）',special:'沿推出线推至1号位，鼻轮不得推过推出等待点',distractors:[{x:613,y:633},{x:613,y:333}]});
+Object.assign(STANDS[80],{angled:true,angledHdg:60,pushEnd:{x:1120,y:612},pushDesc:'推出线1号位（鼻轮不得推过推出等待点）',special:'沿推出线推至1号位，鼻轮不得推过推出等待点',distractors:[{x:1133,y:633},{x:1133,y:333}]});
+Object.assign(STANDS[801],{angled:true,angledHdg:25,special:'推到位后飞机呈斜停状态'});
+/* ================= 地图绘制 ================= */
+const NS='http://www.w3.org/2000/svg';
+const viewport=document.getElementById('viewport');
+function el(name,attrs,parent){const e=document.createElementNS(NS,name);for(const k in attrs)e.setAttribute(k,attrs[k]);if(parent)parent.appendChild(e);return e;}
+function taxiRibbon(g,d,label,lx,ly,vertical){el('path',{d:d,stroke:'#434a55','stroke-width':15,fill:'none','stroke-linecap':'round'},g);el('path',{d:d,stroke:'#d8b93a','stroke-width':1.6,'stroke-dasharray':'10 8',fill:'none'},g);if(label){const t=el('text',{x:lx,y:ly,fill:'#e6c85a','font-size':14,'font-weight':'bold','text-anchor':'middle'},g);t.textContent=label;}}
+function mapLabel(g,x,y,txt,size,color,anchor){const t=el('text',{x:x,y:y,fill:color||'#9fb3c8','font-size':size||13,'text-anchor':anchor||'middle'},g);t.textContent=txt;return t;}
+function planeShape(g,fill,stroke){
+  el('path',{d:'M0,-28 C3,-28 4.5,-24 4.5,-18 L4.5,-7 L23,7 L23,13 L4.5,8 L4.5,17 L11,24 L11,27.5 L0,24.5 L-11,27.5 L-11,24 L-4.5,17 L-4.5,8 L-23,13 L-23,7 L-4.5,-7 L-4.5,-18 C-4.5,-24 -3,-28 0,-28 Z',fill:fill,stroke:stroke,'stroke-width':1.2},g);
+  el('circle',{cx:-9,cy:3,r:2.6,fill:stroke},g);el('circle',{cx:9,cy:3,r:2.6,fill:stroke},g);
+}
+function buildMap(){
+  viewport.innerHTML='';
+  const base=el('g',{id:'layerBase'},viewport);
+  el('rect',{x:0,y:0,width:1720,height:780,fill:'#262a31'},base);
+  el('rect',{x:230,y:212,width:1190,height:86,fill:'#2a2f37',rx:12},base);
+  el('rect',{x:20,y:300,width:1600,height:428,fill:'#292e36',rx:14},base);
+  taxiRibbon(base,'M60,60 L1690,60','F',880,52);
+  taxiRibbon(base,'M120,60 L120,240','E7',146,150);
+  taxiRibbon(base,'M233,60 L233,333','E6',259,150);
+  taxiRibbon(base,'M510,60 L510,333','R6',536,150);
+  taxiRibbon(base,'M698,60 L698,333','E5',724,150);
+  taxiRibbon(base,'M1073,60 L1073,333','R5',1099,150);
+  taxiRibbon(base,'M1395,60 L1395,333','R4',1421,150);
+  taxiRibbon(base,'M233,228 L1395,228','L09',800,218);
+  taxiRibbon(base,'M120,333 L1530,333','L08',840,323);
+  taxiRibbon(base,'M195,355 L195,610','L10',221,480);
+  taxiRibbon(base,'M150,370 L150,633','L11',126,500);
+  taxiRibbon(base,'M150,633 L640,633','L12',400,625);
+  taxiRibbon(base,'M150,633 Q140,690 200,700','L12A',170,728);
+  taxiRibbon(base,'M1050,633 L1538,633','L06',1260,625);
+  taxiRibbon(base,'M1470,633 Q1515,643 1522,700','L06A',1450,672);
+  taxiRibbon(base,'M1538,385 L1538,685','L07',1564,540);
+  taxiRibbon(base,'M1583,60 L1583,265','W7',1609,150);
+  taxiRibbon(base,'M1598,265 L1598,385','W6',1624,320);
+  taxiRibbon(base,'M1628,415 L1628,670','W5',1654,540);
+  taxiRibbon(base,'M1650,610 L1650,715','W4',1676,662);
+  [[500,333],[800,333],[1200,333]].forEach(p=>{el('path',{d:'M'+p[0]+','+p[1]+' l14,-6 l0,12 Z',fill:'#49b981',opacity:.85},base);});
+  el('path',{d:'M500,633 l-14,-6 l0,12 Z',fill:'#49b981',opacity:.85},base);
+  el('path',{d:'M1250,633 l14,-6 l0,12 Z',fill:'#49b981',opacity:.85},base);
+  el('polygon',{points:'320,453 690,453 690,520 320,520 285,487',fill:'#3a414d',stroke:'#5a6378','stroke-width':1.5},base);
+  el('rect',{x:690,y:475,width:330,height:190,fill:'#3a414d',stroke:'#5a6378','stroke-width':1.5},base);
+  el('polygon',{points:'1020,460 1408,460 1440,497 1408,525 1020,525',fill:'#3a414d',stroke:'#5a6378','stroke-width':1.5},base);
+  mapLabel(base,855,580,'T2 航站楼',17,'#c7cdd9');
+  mapLabel(base,405,672,'7号机坪',13,'#7f8ba0');
+  mapLabel(base,1260,672,'7号机坪',13,'#7f8ba0');
+  mapLabel(base,700,252,'8号机坪',13,'#7f8ba0');
+  mapLabel(base,1420,252,'8号机坪',13,'#7f8ba0');
+  el('rect',{x:240,y:222,width:1165,height:62,fill:'none',stroke:'#5b6575','stroke-dasharray':'6 5',rx:10},base);
+  const ahs=[['AH01',143,550],['AH02',173,277],['AH03',548,292],['AH04',653,292],['AH05',938,292],['AH06',1493,285],['AH07',1515,262],['AH08',1455,600],['AH09',1510,600]];
+  ahs.forEach(a=>{el('rect',{x:a[1]-5,y:a[2]-5,width:10,height:10,fill:'#e08b3a',stroke:'#1b1e24','stroke-width':1},base);mapLabel(base,a[1]+8,a[2]-8,a[0],10,'#e08b3a','start');});
+  const hps=[['HP01',443,217],['HP02',663,217],['HP03',1488,217],['HP04',1612,400],['HP05',1644,590]];
+  hps.forEach(a=>{el('rect',{x:a[1]-5,y:a[2]-5,width:10,height:10,fill:'#e0c33a',stroke:'#1b1e24','stroke-width':1},base);mapLabel(base,a[1]+8,a[2]-8,a[0],10,'#e0c33a','start');});
+  const na=el('g',{transform:'translate(60,140)'},base);
+  el('path',{d:'M20,0 L-22,0 M-22,0 L-8,-8 M-22,0 L-8,8',stroke:'#c7cdd9','stroke-width':2.5,fill:'none'},na);
+  mapLabel(na,-38,5,'北',14,'#c7cdd9');
+  window._layerStands=el('g',{id:'layerStands'},viewport);
+  window._layerRoutes=el('g',{id:'layerRoutes'},viewport);
+  window._layerFx=el('g',{id:'layerFx'},viewport);
+  window._layerCand=el('g',{id:'layerCand'},viewport);
+  buildStands();
+}
+function buildStands(){
+  const g=window._layerStands;g.innerHTML='';
+  Object.keys(STANDS).forEach(id=>{
+    const st=STANDS[id];
+    const sg=el('g',{class:'standHot','data-id':id},g);
+    el('rect',{x:st.x-30,y:st.y-30,width:60,height:60,fill:'none',stroke:'#c0392b','stroke-width':1.2,rx:4,opacity:.8},sg);
+    if(st.kind==='桥位'){
+      let br=null;
+      if(st.y===390){const top=st.x<690?453:(st.x<1020?475:460);br=[st.x-4,st.y+28,8,top-st.y-28];}
+      else if(st.y===565){const bot=st.x<690?520:525;br=[st.x-4,bot,8,st.y-28-bot];}
+      else if(st.x===263){br=[st.x+26,st.y-4,20,8];}
+      else{br=[1440,st.y-4,34,8];}
+      if(br)el('rect',{x:br[0],y:br[1],width:br[2],height:br[3],fill:'#4c5361'},sg);
+    }
+    const pg=el('g',{transform:'translate('+st.x+','+st.y+') rotate('+st.parkedHdg+') scale(.82)',id:'parked_'+id,opacity:.95},sg);
+    planeShape(pg,'#8d97a8','#5c6572');
+    let lx=st.x,ly=st.y+44,ax=st.x,ay=st.y-38;
+    if(st.y===250){ly=st.y-38;ay=st.y+44;}
+    if(st.x===60){lx=st.x+46;ly=st.y+2;ax=st.x+46;ay=st.y+18;}
+    if(st.x===1478){lx=st.x-46;ly=st.y+2;ax=st.x-46;ay=st.y+18;}
+    const lb=mapLabel(sg,lx,ly,id,13,'#e9ebf1');
+    lb.setAttribute('font-weight','bold');
+    lb.setAttribute('paint-order','stroke');lb.setAttribute('stroke','#22262d');lb.setAttribute('stroke-width','4');
+    mapLabel(sg,ax,ay,st.area+'区·'+(st.kind==='桥位'?'桥':'远'),10,'#7f8ba0');
+    sg.addEventListener('click',ev=>{ev.stopPropagation();onStandClicked(id);});
+  });
+}
+/* ================= 缩放/平移 ================= */
+let view={k:1,tx:0,ty:0};
+function applyView(){viewport.setAttribute('transform','translate('+view.tx+','+view.ty+') scale('+view.k+')');}
+const mapSvg=document.getElementById('map');
+mapSvg.addEventListener('wheel',ev=>{ev.preventDefault();const f=ev.deltaY<0?1.15:1/1.15;const nk=Math.min(4,Math.max(.5,view.k*f));const pt=svgPoint(ev);view.tx=pt.x-(pt.x-view.tx)*(nk/view.k);view.ty=pt.y-(pt.y-view.ty)*(nk/view.k);view.k=nk;applyView();},{passive:false});
+let dragging=null;
+mapSvg.addEventListener('pointerdown',ev=>{dragging={x:ev.clientX,y:ev.clientY,tx:view.tx,ty:view.ty};});
+window.addEventListener('pointermove',ev=>{if(!dragging)return;const r=mapSvg.getBoundingClientRect();const vbw=1720,vbh=780;const sx=vbw/r.width,sy=vbh/r.height;const s=Math.max(sx,sy)/1;view.tx=dragging.tx+(ev.clientX-dragging.x)*(vbw/r.width);view.ty=dragging.ty+(ev.clientY-dragging.y)*(vbh/r.height);applyView();});
+window.addEventListener('pointerup',()=>dragging=null);
+function svgPoint(ev){const r=mapSvg.getBoundingClientRect();return{x:(ev.clientX-r.left)*(1720/r.width),y:(ev.clientY-r.top)*(780/r.height)};}
+document.getElementById('zoomIn').onclick=()=>{view.k=Math.min(4,view.k*1.25);applyView();};
+document.getElementById('zoomOut').onclick=()=>{view.k=Math.max(.5,view.k/1.25);applyView();};
+document.getElementById('zoomReset').onclick=()=>{view={k:1,tx:0,ty:0};applyView();};
+/* ================= 全局状态 ================= */
+const S={mode:'practice',standId:null,parsed:null,correct:null,ans:{dir:null,pt:null,mv:null},anim:false,
+ quiz:{list:[],idx:0,score:0,wrong:0,results:[]}};
+const $=id=>document.getElementById(id);
+function lerpAngle(a,b,t){let d=((b-a+540)%360)-180;return a+d*t;}
+function smooth(a,b,x){let t=Math.min(1,Math.max(0,(x-a)/(b-a)));return t*t*(3-2*t);}
+function dist(a,b){return Math.hypot(a.x-b.x,a.y-b.y);}
+/* ================= 机位选择 ================= */
+(function fillStandSel(){
+  const sel=$('standSel');sel.innerHTML='<option value="">— 下拉选择机位 —</option>';
+  const groups={};
+  Object.keys(STANDS).forEach(id=>{const a=STANDS[id].area+'区';(groups[a]=groups[a]||[]).push(id);});
+  Object.keys(groups).sort().forEach(a=>{const og=document.createElement('optgroup');og.label=a;sel.appendChild(og);groups[a].sort((x,y)=>x-y).forEach(id=>{const o=document.createElement('option');o.value=id;o.textContent=id+'（'+STANDS[id].kind+'）';og.appendChild(o);});});
+  sel.onchange=()=>{if(S.mode==='quiz'){sel.value=S.standId||'';return;}if(sel.value)selectStand(sel.value);};
+})();
+function onStandClicked(id){if(S.mode==='quiz')return;selectStand(id);}
+function selectStand(id){
+  if(S.anim)return;
+  S.standId=id;S.parsed=null;S.correct=null;S.ans={dir:null,pt:null,mv:null};
+  clearFx();clearCand();clearAnswerUI();$('feedback').innerHTML='';$('fbCard').style.display='none';
+  document.querySelectorAll('.standHot').forEach(g=>g.style.filter='');
+  const sg=document.querySelector('.standHot[data-id="'+id+'"]');if(sg)sg.style.filter='drop-shadow(0 0 6px #f0b429)';
+  const st=STANDS[id],ai=AREA_INFO[st.area];
+  $('standInfo').innerHTML='<b>'+id+'</b> 号位　'+st.kind+'　'+ai.name+(st.special?'<br><span style="color:#e08b3a">特殊程序：'+st.special+'</span>':'')+
+   '<div class="ruletxt">默认规则：'+ai.rule+'</div>';
+  $('standSel').value=id;
+  if(S.mode==='practice'){$('btnParse').disabled=false;$('instrInput').focus();}
+}
+/* ================= 指令解析 ================= */
+function parseInstr(t){
+  const res={dir:null,towReq:false,notes:[]};
+  let m=t.match(/头\s*[朝向]\s*([南北东西])/);if(!m)m=t.match(/朝\s*([南北东西])/);
+  if(m)res.dir=CN2DIR[m[1]];
+  if(/绿程序/.test(t))res.notes.push('识别到"绿程序"：绿/蓝程序为卫星厅规则，T2 不适用，按 T2 规则处理');
+  if(/蓝程序/.test(t))res.notes.push('识别到"蓝程序"：绿/蓝程序为卫星厅规则，T2 不适用，按 T2 规则处理');
+  if(/让出|道口|拖到|拖至|牵引|指定位置|推到\s*\d|以北|以南|以东|以西/.test(t))res.towReq=true;
+  return res;
+}
+function restate(p){
+  let h='';
+  h+='<div><span class="tag">理解</span>'+(p.dir?'指令明确：<b style="color:#9ecbff">机头朝'+DIR_CN[p.dir]+'</b>':'指令未明确机头朝向 → <b style="color:#9ecbff">按该机位默认规则执行</b>')+'</div>';
+  h+='<div><span class="tag">程序</span>'+(p.towReq?'指令要求<b style="color:#9ecbff">推/拖至指定位置</b>':(p.dir?'指令仅给出机头朝向 → <b style="color:#9ecbff">按方向推至滑行线即可停止</b>':'按默认推出程序执行'))+'</div>';
+  p.notes.forEach(n=>h+='<div style="color:#e08b3a">'+n+'</div>');
+  $('parseOut').innerHTML=h;
+}
+/* ================= 正确答案计算 ================= */
+function computeCorrect(st,p){
+  const dir=p.dir||st.defaultDir;
+  const tow=p.dir?(p.towReq?st.towType:null):st.towType;
+  const endpoint=tow?st.towEnd:st.pushEnd;
+  const endDesc=tow?st.towDesc:st.pushDesc;
+  const hdg=(st.angled&&dir===st.defaultDir&&!p.dir)?st.angledHdg:DIR2HDG[dir];
+  return{dir:dir,maneuver:tow||'none',endpoint:endpoint,endDesc:endDesc,hdg:hdg};
+}
+function startAnswerPhase(){
+  const st=STANDS[S.standId];
+  S.correct=computeCorrect(st,S.parsed);
+  restate(S.parsed);
+  $('answerCard').style.display='block';
+  spawnCandidates(st,S.correct);
+}
+/* ================= 候选点 ================= */
+function clearCand(){window._layerCand.innerHTML='';}
+function spawnCandidates(st,correct){
+  clearCand();
+  const pts=[{x:correct.endpoint.x,y:correct.endpoint.y}];
+  const other=(correct.endpoint===st.pushEnd)?st.towEnd:st.pushEnd;
+  if(other&&dist(other,correct.endpoint)>30)pts.push({x:other.x,y:other.y});
+  st.distractors.forEach(d=>{if(pts.length<4&&pts.every(p=>dist(p,d)>40))pts.push({x:d.x,y:d.y});});
+  for(let i=pts.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));const t=pts[i];pts[i]=pts[j];pts[j]=t;}
+  pts.forEach(p=>{
+    const g=el('g',{class:'candMark',transform:'translate('+p.x+','+p.y+')'},window._layerCand);
+    el('circle',{cx:0,cy:0,r:13,fill:'rgba(240,180,41,.22)',stroke:'#f0b429','stroke-width':2,'stroke-dasharray':'4 3'},g);
+    el('circle',{cx:0,cy:0,r:4.5,fill:'#f0b429'},g);
+    g.addEventListener('click',ev=>{
+      ev.stopPropagation();if(S.anim)return;
+      S.ans.pt={x:p.x,y:p.y};
+      window._layerCand.querySelectorAll('g').forEach(x=>x.querySelector('circle').setAttribute('fill','rgba(240,180,41,.22)'));
+      g.querySelector('circle').setAttribute('fill','rgba(240,180,41,.85)');
+    });
+  });
+}
+/* ================= 作答 UI ================= */
+function clearAnswerUI(){
+  $('answerCard').style.display='none';
+  document.querySelectorAll('.dirBtn').forEach(b=>b.classList.remove('sel'));
+  document.querySelectorAll('.mvOpt').forEach(b=>b.classList.remove('sel'));
+}
+document.querySelectorAll('.dirBtn').forEach(b=>b.onclick=()=>{if(S.anim)return;document.querySelectorAll('.dirBtn').forEach(x=>x.classList.remove('sel'));b.classList.add('sel');S.ans.dir=b.dataset.dir;});
+document.querySelectorAll('.mvOpt').forEach(b=>b.onclick=()=>{if(S.anim)return;document.querySelectorAll('.mvOpt').forEach(x=>x.classList.remove('sel'));b.classList.add('sel');S.ans.mv=b.dataset.mv;});
+$('btnParse').onclick=()=>{
+  const t=$('instrInput').value.trim();
+  if(!t){$('parseOut').innerHTML='<span style="color:#e05c5c">请先输入机长指令</span>';return;}
+  if(!S.standId){$('parseOut').innerHTML='<span style="color:#e05c5c">请先选择机位</span>';return;}
+  S.parsed=parseInstr(t);S.ans={dir:null,pt:null,mv:null};clearAnswerUI();clearFx();
+  $('answerCard').style.display='block';$('fbCard').style.display='none';
+  startAnswerPhase();
+};
+$('instrInput').addEventListener('keydown',ev=>{if(ev.key==='Enter')$('btnParse').click();});
+/* ================= 判分 ================= */
+$('btnSubmit').onclick=()=>{
+  if(!S.correct||S.anim)return;
+  if(!S.ans.dir||!S.ans.pt||!S.ans.mv){$('feedback').innerHTML='<span class="bad">请完成三个作答步骤后再提交。</span>';$('fbCard').style.display='block';return;}
+  const c=S.correct,st=STANDS[S.standId];
+  const dirOK=S.ans.dir===c.dir;
+  const ptOK=dist(S.ans.pt,c.endpoint)<=26;
+  const mvOK=S.ans.mv===c.maneuver;
+  const allOK=dirOK&&ptOK&&mvOK;
+  let h='';
+  h+='<div class="ansline">'+(dirOK?'<span class="good">✓ 机头朝向正确</span>':'<span class="bad">✗ 机头朝向：你选了朝'+DIR_CN[S.ans.dir]+'，正确为朝'+DIR_CN[c.dir]+'</span>')+'</div>';
+  h+='<div class="ansline">'+(ptOK?'<span class="good">✓ 推出结束位置正确</span>':'<span class="bad">✗ 推出结束位置错误，正确位置：'+c.endDesc+'</span>')+'</div>';
+  h+='<div class="ansline">'+(mvOK?'<span class="good">✓ 二次牵引判断正确</span>':'<span class="bad">✗ 二次牵引：正确为「'+MV_CN[c.maneuver]+'」</span>')+'</div>';
+  h+='<div class="ansline" style="color:'+(allOK?'#49b981':'#e08b3a')+'">'+(allOK?'全部正确！正在播放演示…':'存在错误，请点击「播放正确演示」学习正确流程。')+'</div>';
+  $('feedback').innerHTML=h;$('fbCard').style.display='block';$('btnNext').style.display='none';
+  markAnswer(S.ans.pt,c.endpoint,ptOK);
+  if(S.mode==='quiz'){
+    S.quiz.results.push({stand:S.standId,instr:S.quiz.list[S.quiz.idx].instr,ok:allOK,dirOK:dirOK,ptOK:ptOK,mvOK:mvOK});
+    if(allOK)S.quiz.score++;
+    $('quizScore').textContent=S.quiz.score;
+    $('btnNext').style.display='block';
+  }
+  if(allOK)playDemo();
+};
+function markAnswer(pt,correct,ok){
+  const g=window._layerFx;
+  if(pt)el('circle',{cx:pt.x,cy:pt.y,r:10,fill:'none',stroke:ok?'#49b981':'#e05c5c','stroke-width':3},g);
+  if(!ok)el('circle',{cx:correct.x,cy:correct.y,r:14,fill:'none',stroke:'#49b981','stroke-width':3,'stroke-dasharray':'5 4'},g);
+}
+/* ================= 动画演示 ================= */
+function clearFx(){
+  window._layerFx.innerHTML='';window._layerRoutes.innerHTML='';
+  Object.keys(STANDS).forEach(id=>{const p=$('parked_'+id);if(p)p.style.display='';});
+  $('caption').style.display='none';
+}
+function pathD(a,b,off){
+  const mx=(a.x+b.x)/2,my=(a.y+b.y)/2;const dx=b.x-a.x,dy=b.y-a.y;const l=Math.hypot(dx,dy)||1;
+  const px=-dy/l,py=dx/l;
+  return 'M'+a.x+','+a.y+' Q'+(mx+px*off)+','+(my+py*off)+' '+b.x+','+b.y;
+}
+function caption(t,color){const c=$('caption');c.textContent=t;c.style.display=t?'block':'none';c.style.color=color||'var(--acc)';c.style.borderColor=color||'var(--acc)';}
+function playDemo(){
+  const st=STANDS[S.standId],c=S.correct;
+  clearFx();S.anim=true;
+  const parked=$('parked_'+st.id);if(parked)parked.style.display='none';
+  const g=window._layerFx;
+  const pushPath=el('path',{d:pathD({x:st.x,y:st.y},st.pushEnd,45*st.curve),fill:'none',stroke:'var(--route)','stroke-width':3.5,'stroke-dasharray':'9 7',opacity:.95},window._layerRoutes);
+  let towPath=null;
+  if(c.maneuver!=='none')towPath=el('path',{d:pathD(st.pushEnd,c.endpoint,25),fill:'none',stroke:'var(--tow)','stroke-width':3.5,'stroke-dasharray':'9 7',opacity:.95},window._layerRoutes);
+  const plane=el('g',{id:'animPlane'},g);planeShape(plane,'#f2f5fa','#5aa9e6');
+  el('circle',{cx:0,cy:-28,r:3,fill:'#5aa9e6'},plane);
+  const tug=el('g',{id:'animTug'},g);
+  el('line',{x1:0,y1:-12,x2:0,y2:-34,stroke:'#c7cdd9','stroke-width':2.5},tug);
+  el('rect',{x:-8,y:-6,width:16,height:13,rx:3.5,fill:'#f0b429',stroke:'#8a6420','stroke-width':1},tug);
+  el('rect',{x:-5,y:-4,width:10,height:5,rx:1.5,fill:'#5a4a20'},tug);
+  caption('推出中…','var(--route)');
+  animateSeg(pushPath,plane,tug,st.parkedHdg,c.hdg,Math.max(2600,pushPath.getTotalLength()*9),()=>{
+    if(towPath){
+      caption(c.maneuver==='pull'?'牵引中（先推后拉）…':'继续推出中（先推再推）…','var(--tow)');
+      animateSeg(towPath,plane,tug,c.hdg,c.hdg,Math.max(2200,towPath.getTotalLength()*9),finishDemo);
+    }else finishDemo();
+  });
+  function finishDemo(){
+    caption('推出到位 · '+c.endDesc+' · 等待滑出','#49b981');
+    el('path',{d:'M'+c.endpoint.x+','+(c.endpoint.y-34)+' l0,24 M'+c.endpoint.x+','+(c.endpoint.y-34)+' l14,5 l-14,5 Z',stroke:'#49b981','stroke-width':2.5,fill:'#49b981'},g);
+    S.anim=false;
+  }
+}
+function animateSeg(path,plane,tug,h0,h1,dur,cb){
+  const len=path.getTotalLength();const t0=performance.now();
+  function frame(now){
+    const t=Math.min(1,(now-t0)/dur);
+    const e=t<.5?2*t*t:1-Math.pow(-2*t+2,2)/2;
+    const p=path.getPointAtLength(len*e);
+    const h=lerpAngle(h0,h1,smooth(.25,1,e));
+    plane.setAttribute('transform','translate('+p.x+','+p.y+') rotate('+h+')');
+    const rad=h*Math.PI/180;const nx=Math.sin(rad),ny=-Math.cos(rad);
+    tug.setAttribute('transform','translate('+(p.x+nx*42)+','+(p.y+ny*42)+') rotate('+h+')');
+    if(t<1)requestAnimationFrame(frame);else if(cb)cb();
+  }
+  requestAnimationFrame(frame);
+}
+$('btnDemo').onclick=()=>{if(!S.anim&&S.correct)playDemo();};
+$('btnReset').onclick=()=>{if(S.anim)return;clearFx();caption('');if(S.standId)selectStand(S.standId);};
+/* ================= 考核模式 ================= */
+function otherDir(d){const pool=['N','E','S','W'].filter(x=>x!==d);return pool[Math.floor(Math.random()*pool.length)];}
+function genInstr(st){
+  const r=Math.random();
+  if(st.towType&&r<0.4){
+    const d=Math.random()<0.65?st.defaultDir:otherDir(st.defaultDir);
+    return '可以推，头朝'+DIR_CN[d]+'，'+st.towKeyword+'。';
+  }
+  if(r<0.8){
+    const d=Math.random()<0.6?st.defaultDir:otherDir(st.defaultDir);
+    return '可以推，头朝'+DIR_CN[d]+'。';
+  }
+  return '可以推出开车。';
+}
+function startQuiz(){
+  const ids=Object.keys(STANDS);
+  S.quiz={list:[],idx:0,score:0,wrong:0,results:[]};
+  for(let i=0;i<10;i++){const id=ids[Math.floor(Math.random()*ids.length)];S.quiz.list.push({id:id,instr:genInstr(STANDS[id])});}
+  $('quizBar').style.display='flex';showQuizQ();
+}
+function showQuizQ(){
+  const q=S.quiz.list[S.quiz.idx];
+  $('quizProg').textContent=(S.quiz.idx+1)+'/'+S.quiz.list.length;
+  selectStand(q.id);
+  $('quizInstr').style.display='block';
+  $('quizInstr').textContent='📻 机长指令：「'+q.instr+'」';
+  S.parsed=parseInstr(q.instr);
+  $('answerCard').style.display='block';
+  startAnswerPhase();
+}
+$('btnNext').onclick=()=>{
+  if(S.anim)return;
+  S.quiz.idx++;
+  if(S.quiz.idx>=S.quiz.list.length){finishQuiz();return;}
+  showQuizQ();
+};
+function finishQuiz(){
+  const total=S.quiz.list.length,score=S.quiz.score;
+  saveScore(score,total);
+  let h='<div class="ansline" style="font-size:16px">本次考核结束：<b style="color:#f0b429">'+score+' / '+total+'</b> 题完全正确</div>';
+  S.quiz.results.forEach((r,i)=>{
+    h+='<div class="ansline">'+(r.ok?'<span class="good">✓</span>':'<span class="bad">✗</span>')+' 第'+(i+1)+'题 · '+r.stand+'号位 · 「'+r.instr+'」'+(r.ok?'':'<br><span class="dim">'+(r.dirOK?'':'朝向错 ')+(r.ptOK?'':'终点错 ')+(r.mvOK?'':'牵引错')+'</span>')+'</div>';
+  });
+  $('feedback').innerHTML=h;$('fbCard').style.display='block';$('btnNext').style.display='none';
+  $('quizProg').textContent='已结束';
+  caption('考核结束：'+score+'/'+total,'#49b981');
+}
+/* ================= 成绩记录 ================= */
+function saveScore(s,t){
+  try{
+    const arr=JSON.parse(localStorage.getItem('songji_scores')||'[]');
+    arr.unshift({time:new Date().toLocaleString('zh-CN'),score:s,total:t});
+    localStorage.setItem('songji_scores',JSON.stringify(arr.slice(0,50)));
+  }catch(e){}
+}
+function showScores(){
+  let arr=[];try{arr=JSON.parse(localStorage.getItem('songji_scores')||'[]');}catch(e){}
+  $('scoreList').innerHTML=arr.length?arr.map(r=>'<div class="hrow"><span>'+r.time+'</span><b style="color:#f0b429">'+r.score+' / '+r.total+'</b></div>').join(''):'<div class="dim">暂无考核记录</div>';
+  $('scoreModal').style.display='flex';
+}
+$('btnScores').onclick=showScores;
+$('btnCloseScores').onclick=()=>$('scoreModal').style.display='none';
+$('btnClearScores').onclick=()=>{localStorage.removeItem('songji_scores');showScores();};
+$('scoreModal').addEventListener('click',ev=>{if(ev.target.id==='scoreModal')$('scoreModal').style.display='none';});
+/* ================= 模式切换 ================= */
+function setMode(m){
+  S.mode=m;
+  $('tabPractice').classList.toggle('active',m==='practice');
+  $('tabQuiz').classList.toggle('active',m==='quiz');
+  clearFx();clearCand();clearAnswerUI();$('feedback').innerHTML='';$('fbCard').style.display='none';
+  if(m==='practice'){
+    $('quizBar').style.display='none';$('quizInstr').style.display='none';$('practiceInstr').style.display='block';
+    caption('');if(S.standId)selectStand(S.standId);
+  }else{
+    $('practiceInstr').style.display='none';$('parseOut').innerHTML='';
+    startQuiz();
+  }
+}
+$('tabPractice').onclick=()=>{if(!S.anim)setMode('practice');};
+$('tabQuiz').onclick=()=>{if(!S.anim)setMode('quiz');};
+/* ================= 初始化 ================= */
+buildMap();
+caption('请点击地图上的机位开始练习','var(--info)');
+setTimeout(()=>{if(!S.standId)caption('');},5000);
+</script>
+</body>
+</html>
+
+
+
+
+
+
